@@ -1,0 +1,17 @@
+[package]
+name = "day_04"
+version = "0.1.0"
+authors = ["Valentin Tolmer <valentin.tolmer@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "*"
+chrono = "*"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "day_01"
+path = "src/main.rs"
