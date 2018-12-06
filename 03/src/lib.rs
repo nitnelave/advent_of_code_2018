@@ -4,6 +4,8 @@ extern crate nom;
 use std::string::String;
 use std::collections::HashSet;
 
+use itertools::Itertools;
+
 use crate::parse::Claim;
 use crate::vec2d::Vec2D;
 
@@ -12,8 +14,8 @@ mod vec2d;
 
 
 /// Parse all the lines as claims.
-fn parse_lines(lines: &Vec<String>) -> Vec<Claim> {
-    lines.iter().map(parse::parse_claim).collect()
+fn parse_lines(lines: &[String]) -> Vec<Claim> {
+    lines.iter().map(|l| parse::claim(l)).collect()
 }
 
 /// State of a square inch of the fabric.
@@ -25,72 +27,91 @@ enum State {
     OVERLAPPING,
 }
 
-/// Claim a cell. It updates the cell, the set of non-overlapping ids, the size of the overlapping
-/// area, and whether the claim is overlapping anything.
-fn claim_cell(
-    cell: &mut (State, Vec<usize>),
-    non_overlapping_ids: &mut HashSet<usize>,
-    overlapping: &mut usize,
-    is_overlapping: &mut bool,
-) {
-    cell.0 = match cell.0 {
-        State::UNCLAIMED => State::CLAIMED,
-        State::CLAIMED => {
-            *is_overlapping = true;
-            // Increase the overlapping area.
-            *overlapping += 1;
-            // Remove the claim that previously had the cell from the set of
-            // non-overlapping claims, if it was there.
-            non_overlapping_ids.remove(&cell.1[0]);
-            State::OVERLAPPING
-        }
-        State::OVERLAPPING => {
-            *is_overlapping = true;
-            State::OVERLAPPING
-        }
+/// Claim a cell. It returns the new state of the cell, whether the cell is overlapping, and
+/// whether it started overlapping.
+fn claim_cell(state: State) -> (State, bool, bool) {
+    match state {
+        State::UNCLAIMED => (State::CLAIMED, false, true),
+        State::CLAIMED => (State::OVERLAPPING, true, true),
+        State::OVERLAPPING => (State::OVERLAPPING, true, false),
     }
 }
 
-pub fn find_overlapping_area(lines: &Vec<String>) -> (usize, Option<usize>) {
-    let claims = parse_lines(lines);
-    let max_x = claims
-        .iter()
-        .map(|c| c.coordinates.0 + c.size.0)
-        .max()
-        .unwrap_or(0);
-    let max_y = claims
-        .iter()
-        .map(|c| c.coordinates.1 + c.size.1)
-        .max()
-        .unwrap_or(0);
-    let mut board: Vec2D<(State, Vec<usize>)> =
-        Vec2D::from_fn(max_x, max_y, &|| (State::UNCLAIMED, vec![]));
-    let mut overlapping = 0;
-    let mut non_overlapping_ids: HashSet<usize> = HashSet::new();
-    for claim in claims {
-        let mut is_overlapping = false;
-        for x in claim.coordinates.0..(claim.coordinates.0 + claim.size.0) {
-            for y in claim.coordinates.1..(claim.coordinates.1 + claim.size.1) {
-                claim_cell(
-                    &mut board[(x, y)],
-                    &mut non_overlapping_ids,
-                    &mut overlapping,
-                    &mut is_overlapping,
-                );
-                board[(x, y)].1.push(claim.id);
-            }
-        }
-        if !is_overlapping {
-            non_overlapping_ids.insert(claim.id);
+fn x_axis(coord: (usize, usize)) -> usize {
+    coord.0
+}
+
+fn y_axis(coord: (usize, usize)) -> usize {
+    coord.1
+}
+
+fn far_corner(claim: &Claim, axis: &Fn((usize, usize)) -> usize) -> usize {
+    axis(claim.coordinates) + axis(claim.size)
+}
+
+/// Find the maximum coordinate of the `claims`, along the dimension provided by `axis`.
+fn find_max_coordinate(claims: &[Claim], axis: &Fn((usize, usize)) -> usize) -> usize {
+    claims.iter().map(|c| far_corner(c, axis)).max().unwrap_or(
+        0,
+    )
+}
+
+struct Board {
+    cells: Vec2D<(State, Vec<usize>)>,
+    overlapping: usize,
+    non_overlapping_ids: HashSet<usize>,
+}
+
+impl Board {
+    fn new(max_x: usize, max_y: usize) -> Self {
+        Self {
+            cells: Vec2D::from_fn(max_x, max_y, &|| (State::UNCLAIMED, vec![])),
+            overlapping: 0,
+            non_overlapping_ids: HashSet::new(),
         }
     }
-    let mut non_overlapping_claim = None;
-    if non_overlapping_ids.len() == 1 {
-        non_overlapping_claim = Some(
-            *non_overlapping_ids.iter().next().unwrap()
+
+    fn process_cell(&mut self, coord: (usize, usize)) -> bool {
+        let (status, is_overlapping, starts_overlapping) = claim_cell(self.cells[coord].0);
+        self.cells[coord].0 = status;
+        if starts_overlapping {
+            self.overlapping += 1;
+            self.non_overlapping_ids.remove(&self.cells[coord].1[0]);
+        }
+        is_overlapping
+    }
+
+    fn process_claim(&mut self, claim: &Claim) {
+        let mut is_overlapping = false;
+        (x_axis(claim.coordinates)..far_corner(&claim, &x_axis))
+            .cartesian_product(y_axis(claim.coordinates)..far_corner(&claim, &y_axis))
+            .for_each(|coord| {
+                is_overlapping = self.process_cell(coord);
+                self.cells[coord].1.push(claim.id);
+            });
+        if !is_overlapping {
+            self.non_overlapping_ids.insert(claim.id);
+        }
+    }
+
+    fn get_result(self) -> (usize, Option<usize>) {
+        (
+            self.overlapping,
+            self.non_overlapping_ids.into_iter().next(),
         )
     }
-    (overlapping, non_overlapping_claim)
+}
+
+
+/// Find the area of overlap between the claims defined by `lines`, as well as the ID of the first
+/// claim that doesn't overlap with any other.
+pub fn find_overlapping_area(lines: &[String]) -> (usize, Option<usize>) {
+    let claims = parse_lines(lines);
+    let max_x = find_max_coordinate(&claims, &x_axis);
+    let max_y = find_max_coordinate(&claims, &y_axis);
+    let mut board = Board::new(max_x, max_y);
+    claims.iter().for_each(|c| board.process_claim(c));
+    board.get_result()
 }
 
 

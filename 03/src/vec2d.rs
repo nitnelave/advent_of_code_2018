@@ -12,7 +12,7 @@ pub struct Vec2D<T> {
 /// Index access with a tuple.
 impl<T> Index<(usize, usize)> for Vec2D<T> {
     type Output = T;
-    fn index<'a>(&'a self, i: (usize, usize)) -> &'a T {
+    fn index(&self, i: (usize, usize)) -> &T {
         &self.vec[i.0 * self.width + i.1]
     }
 }
@@ -20,7 +20,7 @@ impl<T> Index<(usize, usize)> for Vec2D<T> {
 /// Mutable index access with a tuple.
 impl<T> IndexMut<(usize, usize)> for Vec2D<T> {
     //type Output = T;
-    fn index_mut<'a>(&'a mut self, i: (usize, usize)) -> &'a mut T {
+    fn index_mut(&mut self, i: (usize, usize)) -> &mut T {
         &mut self.vec[i.0 * self.width + i.1]
     }
 }
@@ -28,15 +28,10 @@ impl<T> IndexMut<(usize, usize)> for Vec2D<T> {
 /// Build a 2-D vector by filling it with the values returned by the generator
 /// (it gets called for each cell).
 impl<T> Vec2D<T> {
-    pub fn from_fn(height: usize, width: usize, generator: &Fn() -> T) -> Vec2D<T> {
-        let mut vec = Vec::with_capacity(height * width);
-        for _i in 0..(height * width) {
-            vec.push(generator());
-        }
-        Vec2D {
-            height: height,
-            width: width,
-            vec: vec,
-        }
+    pub fn from_fn(height: usize, width: usize, generator: &Fn() -> T) -> Self {
+        let vec = (0..(height * width))
+            .map(|_| generator())
+            .collect::<Vec<_>>();
+        Self { height, width, vec }
     }
 }

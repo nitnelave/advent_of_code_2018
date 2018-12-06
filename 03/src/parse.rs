@@ -1,4 +1,5 @@
 use nom::digit;
+use nom::types::CompleteStr;
 use std::str::FromStr;
 
 /// Represents a claim made by an elf.
@@ -32,7 +33,7 @@ named!(size <&str, (usize, usize)>,
 /// Parse the whole claim.
 /// e.g. "#1 @ 1,3: 4x4 "
 /// Note: the string must end with a space or EOF.
-named!(claim <&str, Claim>,
+named!(claim_impl <&str, Claim>,
     do_parse!(
         id: id >>
         ws!(char!('@')) >>
@@ -43,10 +44,9 @@ named!(claim <&str, Claim>,
     )
 );
 
-/// Convenience function to parse a claim from a string, adding a space at the end.
-pub fn parse_claim(input: &std::string::String) -> Claim {
-    // Add a space at the end to "complete" the string.
-    claim(&format!("{} ", input)).unwrap().1
+/// Convenience function to parse a claim from a string.
+pub fn claim(input: &str) -> Claim {
+    claim_impl(&CompleteStr(input)).unwrap().1
 }
 
 #[cfg(test)]
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn test_claim() {
         assert_eq!(
-            claim("#1 @ 1,3: 4x4 ").unwrap().1,
+            claim_impl("#1 @ 1,3: 4x4 ").unwrap().1,
             Claim {
                 id: 1,
                 coordinates: (1, 3),
