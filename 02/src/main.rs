@@ -10,7 +10,11 @@ use std::io::BufRead;
 fn main() {
     let stdin = io::stdin();
     // Read the lines of the input.
-    let lines: Vec<std::string::String> = stdin.lock().lines().map(Result::unwrap).collect();
+    let lines = stdin.lock().lines().map(Result::unwrap).collect::<Vec<_>>();
     println!("checksum: {}", lib::checksum(&lines));
-    println!("common id: {}", lib::find_matching_ids(&lines));
+    if let Some(id) = lib::find_matching_ids(&lines) {
+        println!("common id: {}", id);
+    } else {
+        println!("No common id found");
+    }
 }

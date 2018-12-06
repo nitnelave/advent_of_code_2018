@@ -20,8 +20,8 @@ struct LetterCounter {
 
 impl LetterCounter {
     /// Create a new LetterCount with everything initialized to 0.
-    fn new() -> LetterCounter {
-        LetterCounter {
+    fn new() -> Self {
+        Self {
             histogram: [0; ALPHABET_SIZE],
             number_of_pairs: 0,
             number_of_triplets: 0,
@@ -64,35 +64,32 @@ impl LetterCounter {
 
 /// Check whether a string has pairs and/or triplets. It returns 2 values,
 /// whether there are pairs, and whether there are triplets.
-fn count_pairs_and_triplets(line: &String) -> (bool, bool) {
+fn count_pairs_and_triplets(line: &str) -> (bool, bool) {
     let mut counter = LetterCounter::new();
-    for letter in line.chars() {
-        counter.add_letter(letter);
-    }
+    line.chars().for_each(|l| counter.add_letter(l));
     (counter.has_exactly_two(), counter.has_exactly_three())
 }
 
 /// Compute the checksum of a list of IDs: this is the number of IDs with an
 /// (exact) pair times the number of IDs with an exact triplet.
-pub fn checksum(lines: &Vec<String>) -> i32 {
+pub fn checksum(lines: &[String]) -> i64 {
     // Call count_pairs_and_triplets on every line. We get a list of pairs of
     // bool.
-    let counts = lines.iter().map(&count_pairs_and_triplets);
+    let counts = lines.iter().map(|l| count_pairs_and_triplets(l));
     // Count the number of elements with true in the first spot.
     let number_of_pairs = counts.clone().filter(|t| t.0).count();
     // Count the number of elements with true in the second spot.
     let number_of_triplets = counts.filter(|t| t.1).count();
-    (number_of_pairs * number_of_triplets) as i32
+    (number_of_pairs * number_of_triplets) as i64
 }
 
 /// Consider each line without the nth letter (index), and try to find
 /// duplicates. Returns the first duplicate line, or None if there is none.
-fn find_matching_ids_without_letter(lines: &Vec<String>, index: usize) -> Option<String> {
+fn find_matching_ids_without_letter(lines: &[String], index: usize) -> Option<String> {
     let mut seen: HashSet<String> = HashSet::new();
     for id in lines {
         let new_string: String = id.char_indices()
-            .filter(|(i, _)| *i != index)
-            .map(|(_, c)| c)
+            .filter_map(|(i, c)| if i == index { None } else { Some(c) })
             .collect();
         if seen.contains(&new_string) {
             return Some(new_string);
@@ -103,16 +100,10 @@ fn find_matching_ids_without_letter(lines: &Vec<String>, index: usize) -> Option
 }
 
 /// Find matching ids. Two IDs are matching if they differ only by 1 character.
-pub fn find_matching_ids(lines: &Vec<String>) -> String {
-    let length = lines[0].len();
-    for i in 0..length {
-        match find_matching_ids_without_letter(&lines, i) {
-            Some(s) => return s,
-            None => (),
-        }
-
-    }
-    panic!("No matching id found!")
+pub fn find_matching_ids(lines: &[String]) -> Option<String> {
+    (0..lines[0].len())
+        .filter_map(|i| find_matching_ids_without_letter(&lines, i))
+        .next()
 }
 
 #[cfg(test)]
@@ -149,39 +140,18 @@ mod tests {
 
     #[test]
     fn test_count_pairs_and_triplets() {
-        assert_eq!(
-            (false, false),
-            count_pairs_and_triplets(&"abcdef".to_string())
-        );
-        assert_eq!(
-            (true, true),
-            count_pairs_and_triplets(&"bababc".to_string())
-        );
-        assert_eq!(
-            (true, false),
-            count_pairs_and_triplets(&"abbcde".to_string())
-        );
-        assert_eq!(
-            (false, true),
-            count_pairs_and_triplets(&"abcccd".to_string())
-        );
-        assert_eq!(
-            (true, false),
-            count_pairs_and_triplets(&"aabcdd".to_string())
-        );
-        assert_eq!(
-            (true, false),
-            count_pairs_and_triplets(&"abcdee".to_string())
-        );
-        assert_eq!(
-            (false, true),
-            count_pairs_and_triplets(&"ababab".to_string())
-        );
+        assert_eq!((false, false), count_pairs_and_triplets(&"abcdef"));
+        assert_eq!((true, true), count_pairs_and_triplets(&"bababc"));
+        assert_eq!((true, false), count_pairs_and_triplets(&"abbcde"));
+        assert_eq!((false, true), count_pairs_and_triplets(&"abcccd"));
+        assert_eq!((true, false), count_pairs_and_triplets(&"aabcdd"));
+        assert_eq!((true, false), count_pairs_and_triplets(&"abcdee"));
+        assert_eq!((false, true), count_pairs_and_triplets(&"ababab"));
     }
 
     #[test]
     fn test_checksum() {
-        let lines: Vec<String> = vec![
+        let lines = &[
             "abcdef",
             "bababc",
             "abbcde",
@@ -190,14 +160,14 @@ mod tests {
             "abcdee",
             "ababab",
         ].into_iter()
-            .map(str::to_string)
-            .collect();
-        assert_eq!(12, checksum(&lines));
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(12, checksum(lines));
     }
 
     #[test]
     fn test_find_matching_ids_without_letter() {
-        let lines: Vec<String> = vec![
+        let lines = &[
             "abcde",
             "fghij",
             "klmno",
@@ -206,19 +176,19 @@ mod tests {
             "axcye",
             "wvxyz",
         ].into_iter()
-            .map(str::to_string)
-            .collect();
-        assert_eq!(None, find_matching_ids_without_letter(&lines, 0));
-        assert_eq!(None, find_matching_ids_without_letter(&lines, 1));
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(None, find_matching_ids_without_letter(lines, 0));
+        assert_eq!(None, find_matching_ids_without_letter(lines, 1));
         assert_eq!(
             Some("fgij".to_string()),
-            find_matching_ids_without_letter(&lines, 2)
+            find_matching_ids_without_letter(lines, 2)
         );
     }
 
     #[test]
     fn test_find_matching_ids() {
-        let lines: Vec<String> = vec![
+        let lines = &[
             "abcde",
             "fghij",
             "klmno",
@@ -227,8 +197,8 @@ mod tests {
             "axcye",
             "wvxyz",
         ].into_iter()
-            .map(str::to_string)
-            .collect();
-        assert_eq!("fgij", find_matching_ids(&lines));
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!("fgij", find_matching_ids(lines));
     }
 }
