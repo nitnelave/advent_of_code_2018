@@ -10,7 +10,7 @@ fn main() {
         "Single worker build steps: {}",
         lib::find_build_order(&lines)
             .iter()
-            .map(|&n| (u8::from(n) + 'A' as u8) as char)
+            .map(|&n| (u8::from(n) + b'A') as char)
             .collect::<String>()
     );
     println!(

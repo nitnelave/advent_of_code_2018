@@ -4,9 +4,12 @@ extern crate nom;
 #[macro_use]
 extern crate derive_more;
 
+extern crate boolinator;
+
 use std::iter::Iterator;
 use std::fmt::Debug;
 use std::collections::BinaryHeap;
+use boolinator::Boolinator;
 
 const ALPHABET_SIZE: usize = 26;
 
@@ -28,7 +31,7 @@ impl std::cmp::Ord for NodeId {
 
 /// Parse a NodeId: Map 'A' to 0, 'B' to 1, etc...
 named!(node_id <&str, NodeId>,
-       map!(take!(1), |c| NodeId(c.bytes().next().unwrap() - 'A' as u8))
+       map!(take!(1), |c| NodeId(c.bytes().next().unwrap() - b'A'))
 );
 
 /// A constraint is an edge in our directed graph: the first one must come before the second one.
@@ -63,9 +66,9 @@ struct Node {
     num_parents: usize,
 }
 
-/// A simple graph is just the structure, with each node identified by a NodeId.
+/// A simple graph is just the structure, with each node identified by a `NodeId`.
 ///
-/// Since the NodeIds may not be dense, we only store Options in the vector.
+/// Since the `NodeId`s may not be dense, we only store Options in the vector.
 #[derive(Debug)]
 struct SimpleGraph {
     nodes: Vec<Option<Node>>,
@@ -74,26 +77,18 @@ struct SimpleGraph {
 impl SimpleGraph {
     /// Mutable access to a node. If the node doesn't exist, it will be created.
     fn get_mut_node(&mut self, key: NodeId) -> &mut Node {
-        let cell = &mut self.nodes.get_mut(u8::from(key) as usize).unwrap();
-        if let None = *cell {
-            **cell = Some(Node {
+        let cell = &mut self.nodes[key.0 as usize];
+        if cell.is_none() {
+            *cell = Some(Node {
                 children: vec![],
                 num_parents: 0,
             });
         }
-        self.nodes
-            .get_mut(u8::from(key) as usize)
-            .unwrap()
-            .as_mut()
-            .unwrap()
+        self.nodes[key.0 as usize].as_mut().unwrap()
     }
     /// Read-only access to a node. If the node doesn't exist, panic.
     fn get_node(&self, key: NodeId) -> &Node {
-        self.nodes
-            .get(u8::from(key) as usize)
-            .unwrap()
-            .as_ref()
-            .unwrap()
+        self.nodes[key.0 as usize].as_ref().unwrap()
     }
 
     /// Iterate over all the (defined) nodes in the graph.
@@ -112,7 +107,7 @@ fn build_graph(constraints: &[Constraint]) -> SimpleGraph {
     graph
 }
 
-/// A graph with other data attached to each node. It is a wrapper over a SimpleGraph.
+/// A graph with other data attached to each node. It is a wrapper over a `SimpleGraph`.
 #[derive(Debug)]
 struct AnnotatedGraph<T>
 where
@@ -138,29 +133,26 @@ where
     fn get_mut_node(&mut self, key: NodeId) -> (&Node, &mut T) {
         (
             &self.graph.get_node(key),
-            self.annotations.get_mut(u8::from(key) as usize).unwrap(),
+            &mut self.annotations[key.0 as usize],
         )
     }
     /// Get the node of the original graph, with the associated metadata.
-    fn get_node<'a>(&'a self, key: NodeId) -> (&'a Node, &'a T) {
-        (
-            &self.graph.get_node(key),
-            self.annotations.get(u8::from(key) as usize).unwrap(),
-        )
+    fn get_node(&self, key: NodeId) -> (&Node, &T) {
+        (&self.graph.get_node(key), &self.annotations[key.0 as usize])
     }
 }
 
 /// Find all the roots (no parent) of a simple graph.
+#[allow(clippy::cast_possible_truncation)]
 fn find_roots(graph: &SimpleGraph) -> Vec<NodeId> {
     graph
         .iter()
         .enumerate()
-        .filter(|(_, n)| n.num_parents == 0)
-        .map(|(i, _)| NodeId(i as u8))
+        .filter_map(|(i, n)| (n.num_parents == 0).as_some(NodeId(i as u8)))
         .collect()
 }
 
-/// Update all the children of the node by increasing the number of done_parents.
+/// Update all the children of the node by increasing the number of `done_parents`.
 /// If all the parents are done, push the node on the heap.
 fn mark_node_as_finished(
     node: NodeId,
@@ -171,10 +163,10 @@ fn mark_node_as_finished(
     let children: Vec<NodeId> = graph.get_node(node).0.children.clone();
     for n in children {
         let num_parents = graph.get_node(n).0.num_parents;
-        let done_parents = &mut graph.get_mut_node(n).1;
-        **done_parents += 1;
+        let done_parents = graph.get_mut_node(n).1;
+        *done_parents += 1;
         // If all their parents are done, they can be added to the nodes without dependencies.
-        if num_parents == **done_parents {
+        if num_parents == *done_parents {
             node_heap.push(n);
         }
     }

@@ -8,6 +8,7 @@ edition = "2018"
 nom = "*"
 derive_more = "*"
 itertools = "*"
+boolinator = "*"
 
 [lib]
 name = "lib"
