@@ -8,11 +8,11 @@ mod parse;
 
 /// Import the datatypes from the parser.
 use crate::parse::{DatedEvent, GuardEvent, GuardId};
-/// Import the trait so we can access .min() for NaiveTime.
+/// Import the trait so we can access .min() for `NaiveTime`.
 use crate::parse::chrono::Timelike;
 
 /// All the events of a given day.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Default)]
 struct DayEvent {
     /// Id of the guard.
     guard: GuardId,
@@ -20,18 +20,9 @@ struct DayEvent {
     sleep_times: Vec<(u32, u32)>,
 }
 
-impl DayEvent {
-    fn new() -> DayEvent {
-        DayEvent {
-            guard: GuardId::new(),
-            sleep_times: Vec::new(),
-        }
-    }
-}
-
 /// Parse each line from the logs, and sort them by time.
-fn parse_and_sort_lines(lines: &Vec<String>) -> Vec<DatedEvent> {
-    let mut result: Vec<DatedEvent> = lines.iter().map(parse::parse_line).collect();
+fn parse_and_sort_lines(lines: &[String]) -> Vec<DatedEvent> {
+    let mut result: Vec<DatedEvent> = lines.iter().map(|s| parse::parse_line(s)).collect();
     result.sort_by_key(|e| e.date);
     result
 }
@@ -39,17 +30,17 @@ fn parse_and_sort_lines(lines: &Vec<String>) -> Vec<DatedEvent> {
 /// Summarize the events, grouping them by day (guard).
 fn summarize_by_day(parsed_lines: Vec<DatedEvent>) -> Vec<DayEvent> {
     let mut day_events = Vec::new();
-    let mut day_event = DayEvent::new();
+    let mut day_event = DayEvent::default();
     let mut asleep_time: Option<u32> = None;
-    for event in parsed_lines.into_iter() {
+    for event in parsed_lines {
         match event.event {
             GuardEvent::ShiftBegin(id) => {
                 // We find a new guard, push the old one in the logs, unless
                 // it's the initial, empty one.
-                if day_event.guard != GuardId::new() {
+                if day_event.guard != GuardId::default() {
                     day_events.push(day_event);
                 }
-                day_event = DayEvent::new();
+                day_event = DayEvent::default();
                 day_event.guard = id;
             }
             //
@@ -95,7 +86,7 @@ fn time_slept_in_day(event: &DayEvent) -> u32 {
 }
 
 /// Sum the duration of all the given naps.
-fn time_slept(events: &Vec<DayEvent>) -> u32 {
+fn time_slept(events: &[DayEvent]) -> u32 {
     events.iter().map(time_slept_in_day).sum()
 }
 
@@ -109,11 +100,11 @@ fn find_sleepiest_guard(events_by_guard: &HashMap<GuardId, Vec<DayEvent>>) -> Gu
         .0
 }
 
-fn build_sleep_histogram(events: &Vec<DayEvent>) -> [u32; 60] {
+fn build_sleep_histogram(events: &[DayEvent]) -> [u32; 60] {
     let mut histogram = [0; 60];
     for event in events {
-        for (nap_start, nap_end) in event.sleep_times.iter() {
-            for i in *nap_start..*nap_end {
+        for (nap_start, nap_end) in event.sleep_times.clone() {
+            for i in nap_start..nap_end {
                 histogram[i as usize] += 1;
             }
         }
@@ -122,14 +113,15 @@ fn build_sleep_histogram(events: &Vec<DayEvent>) -> [u32; 60] {
 }
 
 /// Given a single guard, find the minute where he was most often asleep.
-fn find_sleepiest_minute_for_guard(events: &Vec<DayEvent>) -> (u32, u32) {
+fn find_sleepiest_minute_for_guard(events: &[DayEvent]) -> (u32, u32) {
     let histogram = build_sleep_histogram(events);
     let (index, value) = histogram
-        .into_iter()
+        .iter()
         .enumerate()
         // Max count per minute.
         .max_by_key(|k| k.1)
         .unwrap();
+    #[allow(clippy::cast_possible_truncation)]
     (index as u32, *value)
 }
 
@@ -144,7 +136,7 @@ fn find_sleepiest_guard_at_minute(
         .map(|(g, events)| (g, find_sleepiest_minute_for_guard(events)))
         // Find the guard with the highest sleep value for their sleepiest
         // minute.
-        .max_by_key(|(_g, (_min, count))| count.clone())
+        .max_by_key(|(_g, (_min, count))| *count)
         .unwrap();
     (guard, minute)
 }
@@ -158,7 +150,7 @@ fn find_sleepiest_guard_at_minute(
 /// We return every time the product of the guard id and the minute in question.
 ///
 /// The input is the lines of the log, unsorted.
-pub fn find_guard_and_time(lines: &Vec<String>) -> (u32, u32) {
+pub fn find_guard_and_time(lines: &[String]) -> (u32, u32) {
     // Organize the logs.
     let parsed_lines = parse_and_sort_lines(lines);
     let day_events = summarize_by_day(parsed_lines);
@@ -167,7 +159,7 @@ pub fn find_guard_and_time(lines: &Vec<String>) -> (u32, u32) {
     // Strategy 1:
     let sleepiest_guard = find_sleepiest_guard(&guard_to_events);
     let sleepiest_minute =
-        find_sleepiest_minute_for_guard(guard_to_events.get(&sleepiest_guard).unwrap()).0;
+        find_sleepiest_minute_for_guard(&guard_to_events[&sleepiest_guard]).0;
     println!(
         "{:?} slept the most at minute {}",
         sleepiest_guard,

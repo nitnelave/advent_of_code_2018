@@ -5,18 +5,12 @@ use nom::digit;
 use std::str::FromStr;
 
 /// Type-safe way of specifying a guard's ID.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Default)]
 pub struct GuardId(u32);
 
-impl GuardId {
-    pub fn new() -> GuardId {
-        GuardId(0)
-    }
-}
-
-/// Convert the GuardId to a u32.
+/// Convert the `GuardId` to a u32.
 impl From<GuardId> for u32 {
-    fn from(g: GuardId) -> u32 {
+    fn from(g: GuardId) -> Self {
         g.0
     }
 }
@@ -88,8 +82,9 @@ named!(parse_event <&str, DatedEvent>,
            ( DatedEvent { date: date, event: event} )
 ));
 
-/// Parse a line from the log, panics if it fails.
-pub fn parse_line(line: &std::string::String) -> DatedEvent {
+/// Parse a `line` from the log, panics if it fails.
+#[allow(clippy::stutter)]
+pub fn parse_line(line: &str) -> DatedEvent {
     parse_event(line).unwrap().1
 }
 
