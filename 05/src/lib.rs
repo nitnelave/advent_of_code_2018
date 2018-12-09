@@ -2,15 +2,15 @@ extern crate linked_list;
 
 use linked_list::{LinkedList, Cursor};
 
-const CASE_DIFF: u8 = ('a' as u8) - ('A' as u8);
+const CASE_DIFF: u8 = b'a' - b'A';
 
 /// Transform the (ascii) input into a list, optionally skipping a unit.
 /// The letters to be skipped are the one in except (must be within A-Z) and the
 /// lowercase version of it.
-fn to_linked_list_without(bytes: &Vec<u8>, except: Option<u8>) -> LinkedList<u8> {
+fn to_linked_list_without(bytes: &[u8], except: Option<u8>) -> LinkedList<u8> {
     let mut list = LinkedList::new();
     for byte in bytes {
-        if *byte != '\n' as u8 && Some(*byte) != except && Some(*byte - CASE_DIFF) != except {
+        if *byte != b'\n' && Some(*byte) != except && Some(*byte - CASE_DIFF) != except {
             list.push_back(byte.clone());
         }
     }
@@ -18,8 +18,8 @@ fn to_linked_list_without(bytes: &Vec<u8>, except: Option<u8>) -> LinkedList<u8>
 }
 
 /// Check if v1 is the lowercase version of v2.
-fn is_pair_checked(v1: &u8, v2: &u8) -> bool {
-    match v1.checked_sub(*v2) {
+fn is_pair_checked(v1: u8, v2: u8) -> bool {
+    match v1.checked_sub(v2) {
         None => false,
         Some(v) => v == CASE_DIFF,
     }
@@ -28,7 +28,7 @@ fn is_pair_checked(v1: &u8, v2: &u8) -> bool {
 /// Check if e1 and e2 are valid and e1 is the othercase version of e2.
 fn is_pair(e1: Option<u8>, e2: Option<u8>) -> bool {
     match (e1, e2) {
-        (Some(v1), Some(v2)) => is_pair_checked(&v1, &v2) || is_pair_checked(&v2, &v1),
+        (Some(v1), Some(v2)) => is_pair_checked(v1, v2) || is_pair_checked(v2, v1),
         _ => false,
     }
 }
@@ -63,7 +63,7 @@ fn remove_pairs_from_list<'a>(cursor: &mut Cursor<'a, u8>) {
 
 /// Transform a list of bytes into a string.
 fn string_from_list(list: &LinkedList<u8>) -> std::string::String {
-    let vec: Vec<u8> = list.iter().map(|c| c.clone()).collect();
+    let vec: Vec<u8> = list.clone().into_iter().collect();
     std::str::from_utf8(&vec).unwrap().to_string()
 }
 
@@ -71,7 +71,7 @@ fn string_from_list(list: &LinkedList<u8>) -> std::string::String {
 /// unit: if None, then don't ignore letters, if Some(e), then ignore e and
 /// lowercase(e). e must be an uppercase letter.
 /// It returns the resulting string, after removal.
-fn remove_pairs_without(bytes: &Vec<u8>, unit: Option<u8>) -> std::string::String {
+fn remove_pairs_without(bytes: &[u8], unit: Option<u8>) -> std::string::String {
     // Construct the list without the forbidden letters.
     let mut list = to_linked_list_without(bytes, unit);
     // Sanity check: the list has an even length.
@@ -82,14 +82,14 @@ fn remove_pairs_without(bytes: &Vec<u8>, unit: Option<u8>) -> std::string::Strin
 }
 
 /// Remove the pairs from the input, returns the minimal string.
-pub fn remove_pairs(bytes: &Vec<u8>) -> std::string::String {
+pub fn remove_pairs(bytes: &[u8]) -> std::string::String {
     remove_pairs_without(bytes, None)
 }
 
 /// For each letter, try to remove all the pairs from the input without that
 /// letter. Returns the size of the minimal string.
-pub fn try_remove_pairs(bytes: &Vec<u8>) -> usize {
-    (('A' as u8)..('Z' as u8 + 1))
+pub fn try_remove_pairs(bytes: &[u8]) -> usize {
+    (b'A'..=b'Z')
         .map(|c| remove_pairs_without(bytes, Some(c)).len())
         .min()
         .unwrap_or(0)
@@ -102,9 +102,9 @@ mod tests {
     #[test]
     fn test_is_pair() {
         assert_eq!(is_pair(None, Some(32)), false);
-        assert_eq!(is_pair(Some('a' as u8), Some('A' as u8)), true);
-        assert_eq!(is_pair(Some('A' as u8), Some('a' as u8)), true);
-        assert_eq!(is_pair(Some('a' as u8), Some('B' as u8)), false);
+        assert_eq!(is_pair(Some(b'a'), Some(b'A')), true);
+        assert_eq!(is_pair(Some(b'A'), Some(b'a')), true);
+        assert_eq!(is_pair(Some(b'a'), Some(b'B')), false);
     }
 
     fn prepare_input(string: &str) -> Vec<u8> {
