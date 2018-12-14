@@ -1,0 +1,21 @@
+[package]
+name = "day_13"
+version = "0.1.0"
+authors = ["Valentin Tolmer <valentin.tolmer@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "*"
+itertools = "*"
+derive_more = "*"
+
+[dev-dependencies]
+pretty_assertions = "*"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "day_13"
+path = "src/main.rs"
