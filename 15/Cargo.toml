@@ -1,0 +1,20 @@
+[package]
+name = "day_15"
+version = "0.1.0"
+authors = ["Valentin Tolmer <valentin.tolmer@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "*"
+derive_more = "*"
+itertools = "*"
+boolinator = "*"
+ndarray = "*"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "day_15"
+path = "src/main.rs"
