@@ -210,11 +210,7 @@ fn find_match_rec(
         return Some(Vec::new());
     }
     // Possibilities for this slot that haven't been assigned yet.
-    let slot_possibilities = possibilities[0]
-        .difference(seen)
-        .cloned()
-        .collect::<Vec<_>>();
-    for p in slot_possibilities {
+    for &p in possibilities[0].difference(&seen.clone()) {
         seen.insert(p);
         // Try to pick `p`, recurse.
         let res = find_match_rec(&possibilities[1..], seen);
