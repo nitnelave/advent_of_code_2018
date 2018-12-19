@@ -1,0 +1,26 @@
+This file is my understanding of the program in "./input"
+
+registers: a b c d e f
+IP: b
+
+// b: program counter
+// a: branch choice: complex (1) or simple (0) problem
+// e: temporary variable
+d = (2 * 2 * 19 * 11) + (3 * 22 + 18)  // 920
+if a != 0 {
+  d += (27 * 28 + 29) * 30 * 14 * 32  // 10551320
+  a = 0
+}
+// d: number to factor
+// a: sum of factors of d
+// f: factor we're currently considering
+for f in 1..=d {
+  // c: loop counter to find a c * f that is d.
+  // Why the step 2? It seems it would miss half of the factors.
+  for c in 1..d step 2 {
+    if f * c == d {
+      a += f
+    }
+  }
+}
+EXIT

@@ -1,0 +1,19 @@
+[package]
+name = "day_19"
+version = "0.1.0"
+authors = ["Valentin Tolmer <valentin.tolmer@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "*"
+itertools = "*"
+maplit = "*"
+derive_more = "*"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "day_19"
+path = "src/main.rs"
